@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.help:
+    if args.info:
         parser.print_help()
         sys.exit(0)
 
