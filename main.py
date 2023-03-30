@@ -38,6 +38,8 @@ if __name__ == '__main__':
                         help='Enable password spray attack mode.')
     parser.add_argument('-t', '--threads', type=int, default=10,
                         help='Number of threads to use for the attack')
+    parser.add_argument('-i', '--info', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
+
     args = parser.parse_args()
 
     if args.help:
