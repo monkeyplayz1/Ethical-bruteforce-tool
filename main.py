@@ -41,10 +41,10 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--info', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
 
     args = parser.parse_args()
+if args.i:
+    parser.print_help()
+    sys.exit(0)
 
-    if args.info:
-        parser.print_help()
-        sys.exit(0)
 
     if not args.passwords and not args.dictionary:
         print(
